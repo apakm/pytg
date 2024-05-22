@@ -1,0 +1,18 @@
+[project]
+name = "pytg_apakm"
+version = "0.0.1"
+authors = [
+    { name = "NCF Group", email = "management@ncfgroup.co" },
+]
+description = "PYTG is a python package for creating terminal based adventure games, also known as text games."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/apakm/pytg"
+Issues = "https://github.com/apakm/pytg/issues"
