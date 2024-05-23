@@ -1,5 +1,21 @@
 import time
 import sqlite3
+from pytg.state import PYTGStateManager
+
+class PYTGMissingSetupError(Exception):
+    def __init__(self, message="PYTGEngine is not set up."):
+        self.message = message
+        super().__init__(self.message)
+
+class PYTGUknownStateModeError(Exception):
+    def __init__(self, message="Unknown state mode."):
+        self.message = message
+        super().__init__(self.message)
+
+class PYTGDuplicateCommandError(Exception):
+    def __init__(self, message="Command already exists."):
+        self.message = message
+        super().__init__(self.message)
 
 class PYTGCommand:
     def __init__(self, name, description, callback):
@@ -8,56 +24,30 @@ class PYTGCommand:
         self.callback = callback
 
 class PYTGEngine:
-    def __init__(self):
-        self.game_name = "PYTG Test Game"
+    STATE_MODE_SQLITE = "sqlite"
+    STATE_MODE_INI = "ini"
+
+    
+    def __init__(self, game_name="PYTG Test Game", cursor="> ", state_mode=STATE_MODE_SQLITE):
+        """
+            Initializes the game engine.
+        """
+        self.game_name = game_name
         self.state = None
         self.is_running = False
         self.player = None
         self.commands: dict = {}
         self.events = None
         self.world = None
-        self.db = sqlite3.connect(f'data/{self.game_name.replace(" ", "_")}.db')
-        self.__init_db()
-
-    def __init_db(self):
-        """
-            Initializes the database for the game. (private method)
-        """
-        query = """
-            CREATE TABLE IF NOT EXISTS player (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
-                health INTEGER,
-                max_health INTEGER,
-                attack INTEGER,
-                defense INTEGER,
-                gold INTEGER,
-                experience INTEGER
-            );
-
-            CREATE TABLE IF NOT EXISTS world (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
-                description TEXT
-            );
-
-            CREATE TABLE IF NOT EXISTS items (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
-                description TEXT,
-                value INTEGER
-            );
-
-            CREATE TABLE IF NOT EXISTS player_items (
-                item_id INTEGER,
-                player_id INTEGER,
-                FOREIGN KEY (item_id) REFERENCES items(id),
-                FOREIGN KEY (player_id) REFERENCES player(id)
-            );
-        """
-
-        self.db.executescript(query)
-        self.db.commit()
+        self.cursor = cursor
+        self.state_mode = state_mode
+        if self.state_mode == PYTGEngine.STATE_MODE_SQLITE:
+            self.db = sqlite3.connect(f"{self.game_name}.db")
+        elif self.state_mode == PYTGEngine.STATE_MODE_INI:
+            self.file = f"{self.game_name}.ini"
+        else:
+            raise PYTGUknownStateModeError()
+        self.state_manager = PYTGStateManager(self.db if self.db else self.file, self.state_mode)
 
     def setup(self, player, world, initial_state):
         """
@@ -92,11 +82,14 @@ class PYTGEngine:
 
     def main_loop(self):
         while self.is_running:
-            command = input("> ")
+            command = input(f"{self.cursor} ")
             self.__process_command(command)
 
     def add_command(self, name, description, callback):
         """
             Adds a command to the game engine.
         """
-        self.commands[name] = PYTGCommand(name, description, callback)
+        if name in self.commands:
+            raise PYTGDuplicateCommandError()
+        else:
+            self.commands[name] = PYTGCommand(name, description, callback)
